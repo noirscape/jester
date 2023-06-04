@@ -7,7 +7,7 @@ const
   useHttpBeast* = not defined(windows) and not defined(useStdLib)
 
 type
-  MultiData* = OrderedTable[string, tuple[fields: StringTableRef, body: string]]
+  MultiData* = OrderedTable[string, seq[tuple[fields: StringTableRef, body: string]]]
 
   Settings* = ref object
     staticDir*: string # By default ./public
@@ -21,6 +21,10 @@ type
     numThreads*: int # Only available with Httpbeast (`useHttpBeast = true`)
 
   JesterError* = object of Exception
+
+proc addToMultiData(multidata: MultiData, name: string, part: tuple[fields: StringTableRef, body: string]) =
+  var mDataSequence = multidata.getOrDefault(name)
+  mDataSequence.add(part)
 
 proc parseUrlQuery*(query: string, result: var Table[string, string])
     {.deprecated: "use stdlib cgi/decodeData".} =
@@ -55,7 +59,7 @@ template parseContentDisposition(): typed =
       hCount += hValue.skipWhitespace(hCount)
 
 proc parseMultiPart*(body: string, boundary: string): MultiData =
-  result = initOrderedTable[string, tuple[fields: StringTableRef, body: string]]()
+  result = initOrderedTable[string, seq[tuple[fields: StringTableRef, body: string]]]()
   var mboundary = "--" & boundary
 
   var i = 0
@@ -100,7 +104,7 @@ proc parseMultiPart*(body: string, boundary: string): MultiData =
       inc(i)
     i += body.skipWhitespace(i)
 
-    result.add(name, newPart)
+    result.addToMultiData(name, newPart)
 
 proc parseMPFD*(contentType: string, body: string): MultiData =
   var boundaryEqIndex = contentType.find("boundary=")+9
